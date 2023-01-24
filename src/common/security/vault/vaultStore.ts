@@ -17,6 +17,7 @@ export class VaultException extends Error {
 }
 
 export class VaultLockedException extends Error {}
+export class VaultDecryptionException extends Error {}
 
 interface Props {
 	database: VaultDatabaseAdapter;
@@ -71,10 +72,14 @@ export function vaultStore({ database, lockTimeout }: Props) {
 			if (!saltStr) {
 				throw new VaultException('No Vault Salt Found');
 			}
-			const encrypted = JSON.parse(entry) as EncryptedPayload;
-			const key = await generateKey(secret);
-			const decryptionKey = await deriveKey(key, Buffer.from(saltStr, 'hex'));
-			return decrypt<Keys>(encrypted, decryptionKey);
+			try {
+				const encrypted = JSON.parse(entry) as EncryptedPayload;
+				const key = await generateKey(secret);
+				const decryptionKey = await deriveKey(key, Buffer.from(saltStr, 'hex'));
+				return await decrypt<Keys>(encrypted, decryptionKey);
+			} catch (e) {
+				throw new VaultDecryptionException();
+			}
 		});
 	}
 

@@ -2,9 +2,13 @@ export type EncryptedPayload = { dt: string; iv: string };
 
 const DefaultEncoding = 'hex';
 
+export function getRandomBytes(length: number): Uint8Array {
+	return crypto.getRandomValues(new Uint8Array(length));
+}
+
 export async function encrypt(data: object, key: CryptoKey): Promise<EncryptedPayload> {
 	const stuffStr = JSON.stringify(data);
-	const iv = crypto.getRandomValues(new Uint8Array(16));
+	const iv = getRandomBytes(16);
 	const encryptedStuff = await crypto.subtle.encrypt(
 		{
 			name: 'AES-GCM',

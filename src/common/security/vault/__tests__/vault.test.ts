@@ -1,6 +1,11 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 globalThis.crypto = require('node:crypto').webcrypto;
-import { VaultException, VaultLockedException, vaultStore } from '../vaultStore';
+import {
+	VaultDecryptionException,
+	VaultException,
+	VaultLockedException,
+	vaultStore
+} from '../vaultStore';
 import { VaultDatabaseInMemory } from '../vaultDatabaseInMemory';
 
 describe('vaultStore', () => {
@@ -78,6 +83,27 @@ describe('vaultStore', () => {
 				signPrivateKey: 'signPrivateKey2',
 				agreementPrivateKey: 'agreementPrivateKey2'
 			});
+		});
+		test('getKeys with wrong password', async () => {
+			const vault = vaultStore({
+				database: new VaultDatabaseInMemory(),
+				lockTimeout: 2_000
+			});
+			await vault.unlock('PASSWORD');
+			await vault.addKeys({
+				publicKey: 'publicKey',
+				signPrivateKey: 'signPrivateKey',
+				agreementPrivateKey: 'agreementPrivateKey'
+			});
+
+			vault.lock();
+			vault.unlock('WRONG_PASSWORD');
+			try {
+				await vault.getKeys('publicKey');
+				fail('Should not be able to decrypt');
+			} catch (e) {
+				expect(e instanceof VaultDecryptionException).toBeTruthy();
+			}
 		});
 
 		test('throws exception on locked vault', async () => {
