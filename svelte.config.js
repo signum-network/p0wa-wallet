@@ -17,7 +17,7 @@ const config = {
 		adapter: adapter(),
 		alias: {
 			'@app': 'src',
-			'@common': 'src/common'
+			'@components': 'src/lib/components'
 		}
 	}
 };

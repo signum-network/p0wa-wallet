@@ -2,6 +2,7 @@
 	import '../app.postcss';
 	import { onMount } from 'svelte';
 	import { pwaInfo } from 'virtual:pwa-info';
+	import Locker from '$lib/components/locker/Locker.svelte';
 
 	onMount(async () => {
 		if (pwaInfo) {
@@ -31,5 +32,7 @@
 </svelte:head>
 
 <main>
-	<slot />
+	<Locker>
+		<slot />
+	</Locker>
 </main>

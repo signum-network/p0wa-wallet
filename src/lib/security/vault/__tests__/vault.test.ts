@@ -1,64 +1,21 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 globalThis.crypto = require('node:crypto').webcrypto;
-import {
-	VaultDecryptionException,
-	VaultException,
-	VaultLockedException,
-	vaultStore
-} from '../vaultStore';
+import { VaultDecryptionException, VaultException, VaultLockedException, Vault } from '../vault';
 import { VaultDatabaseInMemory } from '../vaultDatabaseInMemory';
 
-describe('vaultStore', () => {
-	test('unlock - time lock', () => {
-		return new Promise((resolve) => {
-			let firstRun = true;
-			const vault = vaultStore({
-				database: new VaultDatabaseInMemory(),
-				lockTimeout: 1_000
-			});
-
-			vault.subscribe((data) => {
-				if (data.isLocked) {
-					expect(data.secret).toBe('');
-					expect(data.timer).toBeNull();
-					if (!firstRun) {
-						resolve(true);
-					} else {
-						firstRun = false;
-					}
-				} else {
-					expect(data.secret).toBe('PASSWORD');
-					expect(data.timer).not.toBeNull();
-				}
-			});
-			vault.unlock('PASSWORD');
-		});
-	});
-
-	test('lock', async () => {
-		return new Promise((resolve) => {
-			const vault = vaultStore({
-				database: new VaultDatabaseInMemory(),
-				lockTimeout: 10_000
-			});
-			vault.unlock('PASSWORD');
-			vault.subscribe((data) => {
-				if (data.isLocked) {
-					expect(data.secret).toBe('');
-					expect(data.timer).toBeNull();
-					resolve(true);
-				}
-			});
-			vault.lock();
-		});
+describe('Vault', () => {
+	test('lock', () => {
+		const vault = new Vault(new VaultDatabaseInMemory());
+		expect(vault.locked).toBeTruthy();
+		vault.unlock('PASSWORD');
+		expect(vault.locked).toBeFalsy();
+		vault.lock();
+		expect(vault.locked).toBeTruthy();
 	});
 
 	describe('addKeys/getKeys', () => {
 		test('all fine', async () => {
-			const vault = vaultStore({
-				database: new VaultDatabaseInMemory(),
-				lockTimeout: 2_000
-			});
+			const vault = new Vault(new VaultDatabaseInMemory());
 			await vault.unlock('PASSWORD');
 			await vault.addKeys({
 				publicKey: 'publicKey',
@@ -85,19 +42,15 @@ describe('vaultStore', () => {
 			});
 		});
 		test('getKeys with wrong password', async () => {
-			const vault = vaultStore({
-				database: new VaultDatabaseInMemory(),
-				lockTimeout: 2_000
-			});
+			const vault = new Vault(new VaultDatabaseInMemory());
 			await vault.unlock('PASSWORD');
 			await vault.addKeys({
 				publicKey: 'publicKey',
 				signPrivateKey: 'signPrivateKey',
 				agreementPrivateKey: 'agreementPrivateKey'
 			});
-
 			vault.lock();
-			vault.unlock('WRONG_PASSWORD');
+			await vault.unlock('WRONG_PASSWORD');
 			try {
 				await vault.getKeys('publicKey');
 				fail('Should not be able to decrypt');
@@ -107,11 +60,8 @@ describe('vaultStore', () => {
 		});
 
 		test('throws exception on locked vault', async () => {
-			const vault = vaultStore({
-				database: new VaultDatabaseInMemory(),
-				lockTimeout: 1_000
-			});
 			try {
+				const vault = new Vault(new VaultDatabaseInMemory());
 				await vault.getKeys('publicKey');
 				fail('Expected error as vault is locked');
 			} catch (e) {
@@ -122,10 +72,7 @@ describe('vaultStore', () => {
 
 	describe('removeKeys', () => {
 		test('all fine', async () => {
-			const vault = vaultStore({
-				database: new VaultDatabaseInMemory(),
-				lockTimeout: 2_000
-			});
+			const vault = new Vault(new VaultDatabaseInMemory());
 			await vault.unlock('PASSWORD');
 			await vault.addKeys({
 				publicKey: 'publicKey',
@@ -138,16 +85,13 @@ describe('vaultStore', () => {
 				await vault.getKeys('publicKey');
 				fail('Should not find keys');
 			} catch (e) {
-				expect(e instanceof VaultException);
+				expect(e instanceof VaultException).toBeTruthy();
 			}
 		});
 
 		test('throws exception on locked vault', async () => {
-			const vault = vaultStore({
-				database: new VaultDatabaseInMemory(),
-				lockTimeout: 1_000
-			});
 			try {
+				const vault = new Vault(new VaultDatabaseInMemory());
 				await vault.removeKeys('publicKey');
 				fail('Expected error as vault is locked');
 			} catch (e) {
@@ -158,10 +102,7 @@ describe('vaultStore', () => {
 
 	describe('nuke', () => {
 		test('all fine', async () => {
-			const vault = vaultStore({
-				database: new VaultDatabaseInMemory(),
-				lockTimeout: 1_000
-			});
+			const vault = new Vault(new VaultDatabaseInMemory());
 			await vault.unlock('PASSWORD');
 			await vault.addKeys({
 				publicKey: 'publicKey',
@@ -177,9 +118,17 @@ describe('vaultStore', () => {
 			await vault.nuke();
 			try {
 				await vault.getKeys('publicKey2');
+				fail('Should not be unlocked');
+			} catch (e) {
+				expect(e instanceof VaultLockedException).toBeTruthy();
+			}
+
+			try {
+				await vault.unlock('PASSWORD');
+				await vault.getKeys('publicKey2');
 				fail('Should not find keys');
 			} catch (e) {
-				expect(e instanceof VaultException);
+				expect(e instanceof VaultException).toBeTruthy();
 			}
 		});
 	});
