@@ -14,7 +14,11 @@ const config = {
 	],
 
 	kit: {
-		adapter: adapter()
+		adapter: adapter(),
+		alias: {
+			'@app': 'src',
+			'@common': 'src/common'
+		}
 	}
 };
 

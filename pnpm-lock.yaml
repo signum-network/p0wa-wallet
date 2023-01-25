@@ -8,6 +8,8 @@ specifiers:
   '@sveltejs/adapter-auto': ^1.0.0
   '@sveltejs/kit': ^1.0.0
   '@types/jest': ^29.2.6
+  '@types/lodash': ^4.14.191
+  '@types/lodash.debounce': ^4.0.7
   '@types/node': ^18.11.18
   '@typescript-eslint/eslint-plugin': ^5.45.0
   '@typescript-eslint/parser': ^5.45.0
@@ -21,6 +23,7 @@ specifiers:
   eslint-config-prettier: ^8.5.0
   eslint-plugin-svelte3: ^4.0.0
   husky: ^8.0.3
+  lodash.debounce: ^4.0.8
   postcss: ^8.4.14
   postcss-load-config: ^4.0.1
   prettier: ^2.8.0
@@ -43,12 +46,15 @@ dependencies:
   '@signumjs/util': 1.0.0-rc.55
   buffer: 6.0.3
   dexie: 3.2.3
+  lodash.debounce: 4.0.8
 
 devDependencies:
   '@playwright/test': 1.29.2
   '@sveltejs/adapter-auto': 1.0.2_@sveltejs+kit@1.2.2
   '@sveltejs/kit': 1.2.2_svelte@3.55.1+vite@4.0.4
   '@types/jest': 29.2.6
+  '@types/lodash': 4.14.191
+  '@types/lodash.debounce': 4.0.7
   '@types/node': 18.11.18
   '@typescript-eslint/eslint-plugin': 5.48.2_caon6io6stgpr7lz2rtbhekxqy
   '@typescript-eslint/parser': 5.48.2_7uibuqfxkfaozanbtbziikiqje
@@ -1840,6 +1846,16 @@ packages:
 
   /@types/json-schema/7.0.11:
     resolution: {integrity: sha512-wOuvG1SN4Us4rez+tylwwwCV1psiNVOkJeM3AUWUNWg/jDQY2+HE/444y5gc+jBmRqASOm2Oeh5c1axHobwRKQ==}
+    dev: true
+
+  /@types/lodash.debounce/4.0.7:
+    resolution: {integrity: sha512-X1T4wMZ+gT000M2/91SYj0d/7JfeNZ9PeeOldSNoE/lunLeQXKvkmIumI29IaKMotU/ln/McOIvgzZcQ/3TrSA==}
+    dependencies:
+      '@types/lodash': 4.14.191
+    dev: true
+
+  /@types/lodash/4.14.191:
+    resolution: {integrity: sha512-BdZ5BCCvho3EIXw6wUCXHe7rS53AIDPLE+JzwgT+OsJk53oBfbSmZZ7CX4VaRoN78N+TJpFi9QPlfIVNmJYWxQ==}
     dev: true
 
   /@types/minimatch/3.0.5:
@@ -3764,7 +3780,6 @@ packages:
 
   /lodash.debounce/4.0.8:
     resolution: {integrity: sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow==}
-    dev: true
 
   /lodash.merge/4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}

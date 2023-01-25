@@ -30,6 +30,7 @@ const InitialState: Vault = {
 	isLocked: true
 };
 
+// TODO: refactor to class and remove svelte store
 export function vaultStore({ database, lockTimeout }: Props) {
 	const v = writable<Vault>(InitialState);
 
