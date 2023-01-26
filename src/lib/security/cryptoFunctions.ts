@@ -1,6 +1,7 @@
 export type EncryptedPayload = { dt: string; iv: string };
 
 const DefaultEncoding = 'hex';
+const Iterations = process.env.NODE_ENV === 'test' ? 10_000 : 500_000;
 
 export function getRandomBytes(length: number): Uint8Array {
 	return crypto.getRandomValues(new Uint8Array(length));
@@ -42,7 +43,7 @@ export async function generateKey(password: string) {
 	return crypto.subtle.importKey('raw', hash, 'PBKDF2', false, ['deriveBits', 'deriveKey']);
 }
 
-export function deriveKey(key: CryptoKey, salt: Uint8Array, iterations = 500_000) {
+export function deriveKey(key: CryptoKey, salt: Uint8Array, iterations = Iterations) {
 	return crypto.subtle.deriveKey(
 		{
 			name: 'PBKDF2',
