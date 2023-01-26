@@ -6,16 +6,16 @@ import {
 	encrypt,
 	generateHash,
 	generateKey,
-	generateSalt
+	generateRandomBytes
 } from '../cryptoFunctions';
 describe('cryptoFunctions', () => {
 	test.skip('generateSalt', async () => {
-		const salt = generateSalt();
+		const salt = generateRandomBytes();
 		expect(salt.length).toBe(32);
 
 		const salts = new Set();
 		for (let i = 0; i < 500_000; ++i) {
-			const s = generateSalt();
+			const s = generateRandomBytes();
 			if (salts.has(s)) {
 				throw new Error('Collision found');
 			} else {
@@ -43,14 +43,14 @@ describe('cryptoFunctions', () => {
 	});
 	test('deriveKey', async () => {
 		const key = await generateKey('PASSWORD');
-		const salt = generateSalt();
+		const salt = generateRandomBytes();
 		const derivedKey = await deriveKey(key, salt);
 		expect(derivedKey.usages).toEqual(['encrypt', 'decrypt']);
 		expect(derivedKey.algorithm.name).toBe('AES-GCM');
 	});
 	test('encrypt/decrypt', async () => {
 		const key = await generateKey('PASSWORD');
-		const salt = generateSalt();
+		const salt = generateRandomBytes();
 
 		const encryptKey = await deriveKey(key, salt);
 		const encrypted = await encrypt({ foo: 'bar' }, encryptKey);

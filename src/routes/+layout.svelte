@@ -2,7 +2,12 @@
 	import '../app.postcss';
 	import { onMount } from 'svelte';
 	import { pwaInfo } from 'virtual:pwa-info';
-	import Locker from '$lib/components/locker/Locker.svelte';
+	import AppContainer from '@components/appContainer/AppContainer.svelte';
+	import PageTransition from '@components/pageTransition/PageTransition.svelte';
+	import Notification from '@components/notification/Notification.svelte';
+
+	/** @type {import('./$types').LayoutData} */
+	export let data;
 
 	onMount(async () => {
 		if (pwaInfo) {
@@ -32,7 +37,10 @@
 </svelte:head>
 
 <main>
-	<Locker>
-		<slot />
-	</Locker>
+	<AppContainer>
+		<PageTransition pathname={data.pathname}>
+			<slot />
+		</PageTransition>
+	</AppContainer>
+	<Notification />
 </main>

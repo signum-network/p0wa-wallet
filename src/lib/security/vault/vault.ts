@@ -4,7 +4,7 @@ import {
 	encrypt,
 	type EncryptedPayload,
 	generateKey,
-	generateSalt,
+	generateRandomBytes,
 	generateHash
 } from '../cryptoFunctions';
 import type { Keys } from '@signumjs/crypto';
@@ -12,10 +12,9 @@ import type { VaultDatabaseAdapter } from './vaultDatabaseAdapter';
 import { VaultDatabaseIndexedDb } from './vaultDatabaseIndexedDb';
 import { VaultDatabaseInMemory } from './vaultDatabaseInMemory';
 import { browser } from '$app/environment';
+import { Buffer } from 'buffer';
 
-interface VaultState {
-	secret: string;
-}
+const UnlockControlId = 'UnlockControl';
 
 export class VaultException extends Error {
 	constructor(msg: string) {
@@ -23,31 +22,103 @@ export class VaultException extends Error {
 	}
 }
 
+export enum VaultState {
+	NotReady,
+	NotInitialized,
+	Locked,
+	Unlocked
+}
+
 export class VaultLockedException extends Error {}
 
 export class VaultDecryptionException extends Error {}
 
+export class VaultInitializationException extends Error {}
+
 export class Vault {
 	private secret = '';
+	private _state = VaultState.NotReady;
 
 	constructor(private database: VaultDatabaseAdapter) {}
 
-	public lock() {
-		this.secret = '';
+	public async load(): Promise<VaultState> {
+		if (this.state === VaultState.NotReady) {
+			// console.log('Loading...', this.state)
+			const salt = await this.database.getSalt();
+			this._state = salt ? VaultState.Locked : VaultState.NotInitialized;
+			// console.log('Loading...', this.state)
+		}
+		return this.state;
 	}
 
-	public get locked() {
-		return this.secret === '';
+	public lock() {
+		this.secret = '';
+		this._state = VaultState.Locked;
+	}
+
+	public get state() {
+		return this._state;
+	}
+
+	public get isInitialized() {
+		return this._state !== VaultState.NotInitialized;
+	}
+
+	public get isLocked() {
+		return this._state === VaultState.Locked;
+	}
+
+	private async maskSecret(secret: string): Promise<string> {
+		return generateHash(secret, 'SHA-512');
+	}
+	public async initialize(secret: string) {
+		try {
+			let saltStr = await this.database.getSalt();
+			if (saltStr) {
+				console.warn('Vault already initialized...skipping');
+				return;
+			}
+			const salt = generateRandomBytes();
+			saltStr = Buffer.from(salt).toString('hex');
+			await this.database.setSalt(saltStr);
+			const maskedSecret = await this.maskSecret(secret);
+			const key = await generateKey(maskedSecret);
+			const encryptionKey = await deriveKey(key, Buffer.from(saltStr, 'hex'));
+			const encrypted = await encrypt(generateRandomBytes(), encryptionKey);
+			await this.database.addData(UnlockControlId, JSON.stringify(encrypted));
+			this._state = VaultState.Locked;
+		} catch (e: any) {
+			throw new VaultInitializationException(e.message);
+		}
 	}
 
 	public async unlock(secret: string): Promise<void> {
-		// TODO: make a test decryption of a control message
-		this.secret = secret;
-		return Promise.resolve();
+		if (!this.isInitialized) {
+			throw new VaultException('Vault Not Initialized');
+		}
+		const entry = await this.database.getData(UnlockControlId);
+		if (!entry) {
+			throw new VaultException('No Vault Unlock Control Entry Found');
+		}
+		const saltStr = await this.database.getSalt();
+		if (!saltStr) {
+			throw new VaultException('No Vault Salt Found');
+		}
+		try {
+			const encrypted = JSON.parse(entry) as EncryptedPayload;
+			const maskedSecret = await this.maskSecret(secret);
+			const key = await generateKey(maskedSecret);
+			const decryptionKey = await deriveKey(key, Buffer.from(saltStr, 'hex'));
+			await decrypt(encrypted, decryptionKey);
+			this.secret = maskedSecret;
+			this._state = VaultState.Unlocked;
+		} catch (e) {
+			throw new VaultDecryptionException();
+		}
 	}
 
-	private withUnlocked<T>(fn: (secret: string) => Promise<T>) {
-		if (!this.locked) {
+	private async withUnlocked<T>(fn: (secret: string) => Promise<T>) {
+		if (!this.isLocked) {
 			return fn(this.secret);
 		}
 		throw new VaultLockedException();
@@ -80,7 +151,7 @@ export class Vault {
 			const id = await generateHash(accountKeys.publicKey);
 			let saltStr = await this.database.getSalt();
 			if (!saltStr) {
-				const salt = generateSalt();
+				const salt = generateRandomBytes();
 				saltStr = Buffer.from(salt).toString('hex');
 				await this.database.setSalt(saltStr);
 			}

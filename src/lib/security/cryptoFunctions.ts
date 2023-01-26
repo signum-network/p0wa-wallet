@@ -65,7 +65,7 @@ export async function generateHash(
 	return Buffer.from(bytes).toString(DefaultEncoding);
 }
 
-export function generateSalt(byteCount = 32) {
+export function generateRandomBytes(byteCount = 32) {
 	const bytes = new Uint8Array(byteCount);
 	crypto.getRandomValues(bytes);
 	return bytes;
