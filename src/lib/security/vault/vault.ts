@@ -43,10 +43,8 @@ export class Vault {
 
 	public async load(): Promise<VaultState> {
 		if (this.state === VaultState.NotReady) {
-			// console.log('Loading...', this.state)
 			const salt = await this.database.getSalt();
 			this._state = salt ? VaultState.Locked : VaultState.NotInitialized;
-			// console.log('Loading...', this.state)
 		}
 		return this.state;
 	}
@@ -118,6 +116,10 @@ export class Vault {
 	}
 
 	private async withUnlocked<T>(fn: (secret: string) => Promise<T>) {
+		if (!this.isInitialized) {
+			throw new VaultInitializationException();
+		}
+
 		if (!this.isLocked) {
 			return fn(this.secret);
 		}
@@ -171,7 +173,7 @@ export class Vault {
 
 	async nuke() {
 		await this.database.drop();
-		return this.lock();
+		this._state = VaultState.NotInitialized;
 	}
 }
 

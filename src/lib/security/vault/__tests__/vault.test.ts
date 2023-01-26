@@ -1,21 +1,47 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 globalThis.crypto = require('node:crypto').webcrypto;
-import { VaultDecryptionException, VaultException, VaultLockedException, Vault } from '../vault';
+import {
+	VaultDecryptionException,
+	VaultException,
+	VaultLockedException,
+	Vault,
+	VaultInitializationException
+} from '../vault';
 import { VaultDatabaseInMemory } from '../vaultDatabaseInMemory';
 
+async function createVault() {
+	const vault = new Vault(new VaultDatabaseInMemory());
+	await vault.load();
+	await vault.initialize('PASSWORD');
+	return vault;
+}
+
 describe('Vault', () => {
-	test('lock', () => {
-		const vault = new Vault(new VaultDatabaseInMemory());
-		expect(vault.locked).toBeTruthy();
-		vault.unlock('PASSWORD');
-		expect(vault.locked).toBeFalsy();
-		vault.lock();
-		expect(vault.locked).toBeTruthy();
+	describe('lock/unlock', () => {
+		test('all fine', async () => {
+			const vault = await createVault();
+			expect(vault.isLocked).toBeTruthy();
+			await vault.unlock('PASSWORD');
+			expect(vault.isLocked).toBeFalsy();
+			vault.lock();
+			expect(vault.isLocked).toBeTruthy();
+		});
+
+		test('try to unlock with wrong password', async () => {
+			const vault = await createVault();
+			expect(vault.isLocked).toBeTruthy();
+			try {
+				await vault.unlock('WRONG_PASSWORD');
+				fail('Should not be able to decrypt/unlock');
+			} catch (e) {
+				expect(e instanceof VaultDecryptionException).toBeTruthy();
+			}
+		});
 	});
 
 	describe('addKeys/getKeys', () => {
 		test('all fine', async () => {
-			const vault = new Vault(new VaultDatabaseInMemory());
+			const vault = await createVault();
 			await vault.unlock('PASSWORD');
 			await vault.addKeys({
 				publicKey: 'publicKey',
@@ -41,27 +67,23 @@ describe('Vault', () => {
 				agreementPrivateKey: 'agreementPrivateKey2'
 			});
 		});
-		test('getKeys with wrong password', async () => {
-			const vault = new Vault(new VaultDatabaseInMemory());
-			await vault.unlock('PASSWORD');
-			await vault.addKeys({
-				publicKey: 'publicKey',
-				signPrivateKey: 'signPrivateKey',
-				agreementPrivateKey: 'agreementPrivateKey'
-			});
-			vault.lock();
-			await vault.unlock('WRONG_PASSWORD');
+		test('try to add keys while locked', async () => {
+			const vault = await createVault();
 			try {
-				await vault.getKeys('publicKey');
+				await vault.addKeys({
+					publicKey: 'publicKey',
+					signPrivateKey: 'signPrivateKey',
+					agreementPrivateKey: 'agreementPrivateKey'
+				});
 				fail('Should not be able to decrypt');
 			} catch (e) {
-				expect(e instanceof VaultDecryptionException).toBeTruthy();
+				expect(e instanceof VaultLockedException).toBeTruthy();
 			}
 		});
 
 		test('throws exception on locked vault', async () => {
 			try {
-				const vault = new Vault(new VaultDatabaseInMemory());
+				const vault = await createVault();
 				await vault.getKeys('publicKey');
 				fail('Expected error as vault is locked');
 			} catch (e) {
@@ -72,7 +94,7 @@ describe('Vault', () => {
 
 	describe('removeKeys', () => {
 		test('all fine', async () => {
-			const vault = new Vault(new VaultDatabaseInMemory());
+			const vault = await createVault();
 			await vault.unlock('PASSWORD');
 			await vault.addKeys({
 				publicKey: 'publicKey',
@@ -91,7 +113,7 @@ describe('Vault', () => {
 
 		test('throws exception on locked vault', async () => {
 			try {
-				const vault = new Vault(new VaultDatabaseInMemory());
+				const vault = await createVault();
 				await vault.removeKeys('publicKey');
 				fail('Expected error as vault is locked');
 			} catch (e) {
@@ -102,7 +124,7 @@ describe('Vault', () => {
 
 	describe('nuke', () => {
 		test('all fine', async () => {
-			const vault = new Vault(new VaultDatabaseInMemory());
+			const vault = await createVault();
 			await vault.unlock('PASSWORD');
 			await vault.addKeys({
 				publicKey: 'publicKey',
@@ -118,12 +140,14 @@ describe('Vault', () => {
 			await vault.nuke();
 			try {
 				await vault.getKeys('publicKey2');
-				fail('Should not be unlocked');
+				fail('Should not be initialized');
 			} catch (e) {
-				expect(e instanceof VaultLockedException).toBeTruthy();
+				expect(e instanceof VaultInitializationException).toBeTruthy();
 			}
 
 			try {
+				await vault.load();
+				await vault.initialize('PASSWORD');
 				await vault.unlock('PASSWORD');
 				await vault.getKeys('publicKey2');
 				fail('Should not find keys');
